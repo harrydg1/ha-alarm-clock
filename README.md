@@ -6,7 +6,7 @@ This is the PCB of an alarm clock I designed because there is nothing like it on
 
 The inspiration is a cheap alarm clock that I soldered myself, from Aliexpress that had some nice features... but lacks others. So here is a list of what the goal is:
 ![picture of the clock](https://github.com/harrydg1/ha-alarm-clock/blob/main/PXL_20250110_095514061.jpg)
-- an alarm clock that you never have to set the time (like daylight saving time, ...)
+- an alarm clock that you never have to set the time (like daylight saving time, ...), based on the ESP32-S3 chip
 - simple good old fashioned red (or any other color you might like) 7 segment display
   - 1 larger one for the time: https://nl.aliexpress.com/item/1005002059351703.html
   - 1 smaller one for the temperature: https://nl.aliexpress.com/item/1005006099563523.html
@@ -26,6 +26,7 @@ From bottom, left to right on the PCB
 - a DAC + amplifier to play music: https://nl.aliexpress.com/item/1005006711010527.html
   and a speaker to go with the amp, but they are too weak/bad quality: https://nl.aliexpress.com/item/1005007390381560.html
 - a connector for I2C where I connected my Bosch BME680: https://nl.aliexpress.com/item/1005004803087064.html
+- (top right): a UART connector, not needed as you can upload via the USB-C connector
 
 The files:
 - fusion 360 design file (still needs a lot of improvement, i know!)
