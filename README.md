@@ -1,6 +1,6 @@
 # ha-alarm-clock
 A fully functional alarm clock for home assistant (the enclosure is ugly, but it's still work in progress)
-
+(Credit where credit's due: This was possible due to the immense help of BC547, if you know him ;))
 
 This is the PCB of an alarm clock I designed because there is nothing like it on the entire net. At least not as far as I know/found.
 
