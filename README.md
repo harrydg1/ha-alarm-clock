@@ -23,7 +23,7 @@ From bottom, left to right on the PCB
 ![PCB design](https://github.com/harrydg1/ha-alarm-clock/blob/main/pcb%20design.png)
 - a built-in high power LED "night light" that is dimmable, with room for a big (2-3W) resistor to limit current if needed: https://nl.aliexpress.com/item/1005006401939984.html
 - a 5V connector to connect a 5V wireless charging pad: https://nl.aliexpress.com/item/1005005716095383.html
-- an extra connector, if you have any ideas what is missing, so it's up to you if you want to add something. There is room (R9) for a 4.7k pull-up resistor
+- an extra connector, if you have any ideas what is missing, so it's up to you if you want to add something. PIR maybe? There is room (R9) for a 4.7k pull-up resistor
 - a DAC + amplifier to play music: https://nl.aliexpress.com/item/1005006711010527.html
   and a speaker to go with the amp, but they are too weak/bad quality: https://nl.aliexpress.com/item/1005007390381560.html
 - a connector for I2C where I connected my Bosch BME680, there is also room for a pullup resistor (R13-R14): https://nl.aliexpress.com/item/1005004803087064.html
