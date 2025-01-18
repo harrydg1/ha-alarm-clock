@@ -34,15 +34,16 @@ psram:
 
 # Enable logging
 logger:
+  level: DEBUG
 
 # Enable Home Assistant API
 api:
   encryption:
-    key: "/D8+EQ85QvImsBvS4F6YhAe+uPusMHDiWqLNDhwrmVg="
+    key: "xxx"
 
 ota:
   - platform: esphome
-    password: "ce2e89a5c0d3ce8ce5ae4ae3287a330a"
+    password: "xxx"
 
 wifi:
   ssid: !secret wifi_ssid
@@ -84,8 +85,13 @@ i2c:
     scan: true
 
 time:
-  - platform: homeassistant
-    id: homeassistant_time
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Brussels
+    servers:
+     - 0.be.pool.ntp.org
+     - 1.be.pool.ntp.org
+     - 2.be.pool.ntp.org
 
 display:
   - platform: tm1637
@@ -109,9 +115,9 @@ display:
         i++;
         it.set_intensity(id(display_intensity).state);
         if ((i % 2) == 0)
-          it.strftime("%H.%M", id(homeassistant_time).now());
+          it.strftime("%H.%M", id(sntp_time).now());
         else
-          it.strftime("%H%M", id(homeassistant_time).now());
+          it.strftime("%H%M", id(sntp_time).now());
 
 number:
   - platform: template
@@ -155,9 +161,28 @@ binary_sensor:
       mode:
         input: true
     name: "Knop Rechts"
-    on_press:
+    id: knop_rechts
+    on_multi_click:
+    - timing:
+        - ON for at most 0.7s
       then:
+        - logger.log: "simple click"
         - light.toggle: bedroomleds
+    - timing:
+        - ON for at least 1s
+      then:
+        - logger.log: "LONG click"
+        - while:
+            condition:
+              binary_sensor.is_on: knop_rechts
+            then:
+              - light.dim_relative:
+                  id: bedroomleds
+                  relative_brightness: 5%
+                  transition_length: 0.2s
+                  brightness_limits:
+                      max_brightness: 100%
+              - delay: 0.1s
 
 sensor:
   - platform: internal_temperature
@@ -243,8 +268,7 @@ output:
 
 switch:
   - platform: gpio
-    pin:
-      number: GPIO12
+    pin: GPIO12
     name: slaapkamerdac
     id: slaapkamerdac
 
