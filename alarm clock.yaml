@@ -1,5 +1,5 @@
 esphome:
-  name: wekker
+  name: wekker_elien
   friendly_name: ${friendlyname}
   platformio_options:
     board_build.flash_mode: dio
@@ -9,7 +9,7 @@ esphome:
         volume: 20%
 
 substitutions:
-  friendlyname: "wekker"
+  friendlyname: "Eliens wekker"
 
 external_components:
   - source:
@@ -43,7 +43,7 @@ logger:
 # Enable Home Assistant API
 api:
   encryption:
-    key: "xxx"
+    key: !secret home_assistant_api_key
   actions:
     - action: rtttl_play
       variables:
@@ -56,7 +56,7 @@ api:
 
 ota:
   - platform: esphome
-    password: "xxx"
+    password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
@@ -66,7 +66,7 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Wekker Fallback Hotspot"
-    password: "xxx"
+    password: !secret hotspot_password
 
 captive_portal:
 
