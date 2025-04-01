@@ -1,5 +1,5 @@
-# ha-alarm-clock
-A fully functional alarm clock for home assistant.
+# ha-alarm-clock v2
+A fully functional alarm clock for home assistant version 2.
 Yes, the enclosure is ugly, but it's still work in progress)
 Credit where credit's due: This was possible due to the immense help of BC547, if you know him ;)
 

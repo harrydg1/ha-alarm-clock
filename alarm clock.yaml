@@ -1,11 +1,15 @@
 esphome:
-  name: test
+  name: wekker
+  friendly_name: ${friendlyname}
   platformio_options:
     board_build.flash_mode: dio
-#  on_boot:
-#    priority: -10
-#    then:
-#      rtttl.play: 'mario:d=4,o=5,b=100:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g,8p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,16p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16c7,16p,16c7,16c7,p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16d#6,8p,16d6,8p,16c6'
+  on_boot:
+    - media_player.volume_set:
+        id: slaapkamer_media_player
+        volume: 20%
+
+substitutions:
+  friendlyname: "wekker"
 
 external_components:
   - source:
@@ -15,7 +19,7 @@ external_components:
     components:
       - adf_pipeline
       - i2s_audio
-    refresh: 0s
+    refresh: never
 
 esp32:
   board:   esp32-s3-devkitc-1
@@ -34,12 +38,21 @@ psram:
 
 # Enable logging
 logger:
-  level: DEBUG
+  level: debug
 
 # Enable Home Assistant API
 api:
   encryption:
     key: "xxx"
+  actions:
+    - action: rtttl_play
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda 'return song_str;'
+#      rtttl.play: 'Flintstones:d=4,o=5,b=200:g#,c#,8p,c#6,8a#,g#,c#,8p,g#,8f#,8f,8f,8f#,8g#,c#,d#,2f,2p,g#,c#,8p,c#6,8a#,g#,c#,8p,g#,8f#,8f,8f,8f#,8g#,c#,d#,2c#'
+
 
 ota:
   - platform: esphome
@@ -57,6 +70,9 @@ wifi:
 
 captive_portal:
 
+# AUX1 pin is GPIO8
+# AUX2 pin is GPIO2
+
 i2s_audio:
   - id: i2s_out
     i2s_lrclk_pin: GPIO9
@@ -71,8 +87,8 @@ adf_pipeline:
 
 media_player:
   - platform: adf_pipeline
-    id: adf_media_player
-    name: s3-dev_media_player
+    id: slaapkamer_media_player
+    name: ${friendlyname}
     keep_pipeline_alive: false
     internal: false
     pipeline:
@@ -95,8 +111,9 @@ time:
 
 display:
   - platform: tm1637
-    clk_pin: GPIO7
-    dio_pin: GPIO15
+    clk_pin: GPIO18
+    dio_pin: GPIO17
+    inverted: true
     update_interval: 2s
     intensity: 0
     id: temp_display
@@ -105,8 +122,8 @@ display:
         it.printf(0, "%.0f~C",id(bedroom_temperature).state);
 
   - platform: tm1637
-    clk_pin: GPIO17
-    dio_pin: GPIO18
+    clk_pin: GPIO15
+    dio_pin: GPIO16
     update_interval: 2s
     intensity: 0
     id: time_display
@@ -122,7 +139,7 @@ display:
 number:
   - platform: template
     id: display_intensity
-    name: "Intensity (0-7)"
+    name: "${friendlyname} Intensity (0-7)"
     icon: mdi:brightness-5
     optimistic: true
     initial_value: 0
@@ -143,24 +160,24 @@ binary_sensor:
       inverted: true
       mode:
         input: true
-    name: "Knop Links"
+    name: "${friendlyname} Knop Links"
   - platform: gpio
     pin:
       number: GPIO5
       inverted: true
       mode:
         input: true
-    name: "Knop Midden"
-    on_press:
-      then:
-        - switch.toggle: slaapkamerdac
+    name: "${friendlyname} Knop Midden"
+#    on_press:
+#      then:
+#        - switch.toggle: slaapkamerdac
   - platform: gpio
     pin:
       number: GPIO6
       inverted: true
       mode:
         input: true
-    name: "Knop Rechts"
+    name: "${friendlyname} Knop Rechts"
     id: knop_rechts
     on_multi_click:
     - timing:
@@ -186,30 +203,53 @@ binary_sensor:
 
 sensor:
   - platform: internal_temperature
-    name: "Internal Temperature"
+    name: "${friendlyname} Internal Temperature"
+    entity_category: "diagnostic"
+    update_interval: 5.0min
+  - platform: uptime
+    name: ${friendlyname} Uptime
+    id: sys_uptime
+    entity_category: "diagnostic"
+    filters:
+      - lambda: return x / 86400;
+    unit_of_measurement: "d"
+    update_interval: 5.0min
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "${friendlyname} WiFi Signal dB"
+    id: wifi_signal_db
+    entity_category: "diagnostic"
+    update_interval: 5.0min
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "${friendlyname} WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+    device_class: ""
   - platform: adc
     id: light_sensor
-    name: light Sensor
+    name: ${friendlyname} light Sensor
     update_interval: 1s
-    pin: GPIO2
+    pin: GPIO1
     attenuation: auto
   - platform: bme680
     temperature:
-      name: "Bedroom Temperature"
+      name: "${friendlyname} Temperature"
       id: bedroom_temperature
       oversampling: 16x
     pressure:
-      name: "Bedroom Pressure"
+      name: "${friendlyname} Pressure"
     humidity:
       id: "bedroom_humidity"
-      name: "Bedroom Humidity"
+      name: "${friendlyname} Humidity"
     gas_resistance:
       id: "bedroom_gas_resistance"
-      name: "Bedroom Gas Resistance"
+      name: "${friendlyname} Gas Resistance"
     address: 0x77
     update_interval: 60s
   - platform: template
-    name: "Bedroom Air Quality"
+    name: "${friendlyname} Air Quality"
     id: bedroom_iaq
     icon: "mdi:gauge"
     # calculation: comp_gas = log(R_gas[ohm]) + 0.04 log(Ohm)/%rh * hum[%rh]
@@ -219,7 +259,7 @@ sensor:
 
 text_sensor:
   - platform: template
-    name: "Bedroom IAQ Classification"
+    name: "${friendlyname} IAQ Classification"
     icon: "mdi:checkbox-marked-circle-outline"
     lambda: |-
       if (int(id(bedroom_iaq).state) <= 50) {
@@ -259,18 +299,24 @@ interval:
 
 output:
   - platform: ledc
-    pin: GPIO16
+    pin: GPIO7
     id: leds
+    frequency: 4096
   - platform: ledc
     pin: GPIO13
     id: buzzer_out
+    frequency: 4096
     max_power: 0.05
 
 switch:
   - platform: gpio
     pin: GPIO12
-    name: slaapkamerdac
+    name: ${friendlyname} slaapkamerdac
     id: slaapkamerdac
+    on_turn_on:
+      - media_player.volume_set:
+          id: slaapkamer_media_player
+          volume: 20%
 
 rtttl:
   output: buzzer_out
@@ -278,6 +324,6 @@ rtttl:
 
 light:
   - platform: monochromatic
-    name: "Night Light"
+    name: "${friendlyname} Night Light"
     output: leds
     id: bedroomleds
