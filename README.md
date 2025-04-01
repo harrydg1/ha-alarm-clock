@@ -20,7 +20,7 @@ The inspiration is a cheap alarm clock that I soldered myself, from Aliexpress t
 
 
 From bottom, left to right on the PCB
-![PCB design](https://github.com/harrydg1/ha-alarm-clock/blob/main/Pictures/pcb%20design.png)
+![PCB design](https://github.com/harrydg1/ha-alarm-clock/blob/version-2/Pictures/pcb%20design.png)
 - a built-in high power LED "night light" that is dimmable, with room for a big (2-3W) resistor to limit current if needed: [https://nl.aliexpress.com/item/1005006401939984.html](https://nl.aliexpress.com/item/1005006334229998.html)
 - a 5V connector to connect a 5V wireless charging pad: https://nl.aliexpress.com/item/1005005716095383.html
 - an extra connector, if you have any ideas what is missing, so it's up to you if you want to add something. PIR maybe? There is room (R9) for a 4.7k pull-up resistor
