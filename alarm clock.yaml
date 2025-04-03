@@ -114,6 +114,7 @@ display:
     clk_pin: GPIO18
     dio_pin: GPIO17
     inverted: true
+    length: 4
     update_interval: 2s
     intensity: 0
     id: temp_display
@@ -124,6 +125,7 @@ display:
   - platform: tm1637
     clk_pin: GPIO15
     dio_pin: GPIO16
+    length: 4
     update_interval: 2s
     intensity: 0
     id: time_display
