@@ -1,15 +1,22 @@
+substitutions:
+  friendlyname: "alarmclock"
+  ha_api_key: !secret home_assistant_api_key
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  ota_password: !secret ota_password
+  hotspot_password: !secret hotspot_password
+
 esphome:
-  name: wekker_elien
+  name: ${friendlyname}
   friendly_name: ${friendlyname}
   platformio_options:
     board_build.flash_mode: dio
   on_boot:
-    - media_player.volume_set:
-        id: slaapkamer_media_player
-        volume: 20%
-
-substitutions:
-  friendlyname: "Eliens wekker"
+    then:
+      - delay: 5s
+      - media_player.volume_set:
+         id: slaapkamer_media_player
+         volume: 10%
 
 external_components:
   - source:
@@ -19,7 +26,7 @@ external_components:
     components:
       - adf_pipeline
       - i2s_audio
-    refresh: never
+      #    refresh: never
 
 esp32:
   board:   esp32-s3-devkitc-1
@@ -35,15 +42,15 @@ esp32:
 psram:
   mode: octal
   speed: 80MHz
-
+    
 # Enable logging
 logger:
-  level: debug
+  level: info
 
 # Enable Home Assistant API
 api:
   encryption:
-    key: !secret home_assistant_api_key
+    key: ${ha_api_key}
   actions:
     - action: rtttl_play
       variables:
@@ -56,20 +63,20 @@ api:
 
 ota:
   - platform: esphome
-    password: !secret ota_password
+    password: ${ota_password}
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
   domain: .lan
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Wekker Fallback Hotspot"
-    password: !secret hotspot_password
+    ssid: "${friendlyname} Fallback Hotspot"
+    password: ${hotspot_password}
 
 captive_portal:
-
+    
 # AUX1 pin is GPIO8
 # AUX2 pin is GPIO2
 
@@ -77,14 +84,14 @@ i2s_audio:
   - id: i2s_out
     i2s_lrclk_pin: GPIO9
     i2s_bclk_pin: GPIO10
-
+  
 adf_pipeline:
   - platform: i2s_audio
     type: audio_out
     id: adf_i2s_out
     i2s_audio_id: i2s_out
     i2s_dout_pin: GPIO11
-
+    
 media_player:
   - platform: adf_pipeline
     id: slaapkamer_media_player
@@ -98,7 +105,6 @@ media_player:
 i2c:
     sda: GPIO21
     scl: GPIO47
-    scan: true
 
 time:
   - platform: sntp
@@ -114,44 +120,33 @@ display:
     clk_pin: GPIO18
     dio_pin: GPIO17
     inverted: true
-    update_interval: 2s
+    length: 4
+    update_interval: 500ms
     intensity: 0
     id: temp_display
     lambda: |-
-        it.set_intensity(id(display_intensity).state);
-        it.printf(0, "%.0f~C",id(bedroom_temperature).state);
+        it.printf("%.0f~C", id(bedroom_temperature).state);
 
   - platform: tm1637
     clk_pin: GPIO15
     dio_pin: GPIO16
-    update_interval: 2s
+    update_interval: 500ms
+    length: 4
     intensity: 0
     id: time_display
     lambda: |-
-        static int i = 0;
-        i++;
-        it.set_intensity(id(display_intensity).state);
-        if ((i % 2) == 0)
-          it.strftime("%H.%M", id(sntp_time).now());
-        else
-          it.strftime("%H%M", id(sntp_time).now());
+        auto t = id(sntp_time).now();
+        int hour = t.hour;
+        int minute = t.minute;
 
-number:
-  - platform: template
-    id: display_intensity
-    name: "${friendlyname} Intensity (0-7)"
-    icon: mdi:brightness-5
-    optimistic: true
-    initial_value: 0
-    min_value: 0
-    max_value: 7
-    step: 1
-    update_interval: 1000ms
-    restore_value: true
-    on_value:
-      then:
-        - component.update: temp_display
-        - component.update: time_display
+        // Blink colon every 2 seconds
+        bool blink = (int(id(millis()) / 1000) % 2) == 0;
+
+        if (hour < 10) {
+          it.printf(" %d%s%02d", hour, blink ? "." : "", minute);
+          } else {
+          it.printf("%02d%s%02d", hour, blink ? "." : "", minute);
+        }
 
 binary_sensor:
   - platform: gpio
@@ -196,16 +191,17 @@ binary_sensor:
               - light.dim_relative:
                   id: bedroomleds
                   relative_brightness: 5%
-                  transition_length: 0.2s
+                  transition_length: 0.1s
                   brightness_limits:
                       max_brightness: 100%
-              - delay: 0.1s
+              - delay: 0.3s
 
 sensor:
   - platform: internal_temperature
     name: "${friendlyname} Internal Temperature"
     entity_category: "diagnostic"
     update_interval: 5.0min
+
   - platform: uptime
     name: ${friendlyname} Uptime
     id: sys_uptime
@@ -214,28 +210,48 @@ sensor:
       - lambda: return x / 86400;
     unit_of_measurement: "d"
     update_interval: 5.0min
+
   - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
     name: "${friendlyname} WiFi Signal dB"
     id: wifi_signal_db
     entity_category: "diagnostic"
     update_interval: 5.0min
+
   - platform: copy # Reports the WiFi signal strength in %
     source_id: wifi_signal_db
     name: "${friendlyname} WiFi Signal Percent"
     filters:
-      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+      - lambda: return clamp(2 * (x + 100.0), 0.0, 100.0);
     unit_of_measurement: "%"
     entity_category: "diagnostic"
     device_class: ""
+
   - platform: adc
     id: light_sensor
     name: ${friendlyname} light Sensor
-    update_interval: 1s
+    update_interval: 3s
     pin: GPIO1
-    attenuation: auto
+    attenuation: 12db
+    on_value:
+      then:
+        - lambda: |-
+            float voltage = x;
+            float brightness_factor = clamp(voltage / 3.3, 0.0, 1.0)
+
+            // Apply a logarithmic curve for smoother eye perception
+            float scaled = pow(brightness_factor, 0.6);
+
+            // Map to TM1637 intensity range (0–7)
+            const int min_intensity = 1;  // minimum brightness (0 = off)
+            const int max_intensity = 7;  // maximum brightness
+            int intensity = clamp(int(scaled * (max_intensity - min_intensity) + min_intensity + 0.8), min_intensity, max_intensity);
+
+            // Apply to both TM1637 displays
+            id(temp_display).set_intensity(intensity);
+            id(time_display).set_intensity(intensity);
   - platform: bme680
     temperature:
-      name: "${friendlyname} Temperature"
+      name: "${friendlyname} Bedroom Temperature"
       id: bedroom_temperature
       oversampling: 16x
     pressure:
@@ -262,52 +278,27 @@ text_sensor:
     name: "${friendlyname} IAQ Classification"
     icon: "mdi:checkbox-marked-circle-outline"
     lambda: |-
-      if (int(id(bedroom_iaq).state) <= 50) {
-        return {"Excellent"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 100) {
-        return {"Good"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 150) {
-        return {"Lightly polluted"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 200) {
-        return {"Moderately polluted"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 250) {
-        return {"Heavily polluted"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 350) {
-        return {"Severely polluted"};
-      }
-      else if (int(id(bedroom_iaq).state) <= 500) {
-        return {"Extremely polluted"};
-      }
-      else {
-        return {"unknown"};
-      }
-
-interval:
-- interval: 1s
-  then:
-    - lambda: |-
-        float raw_value = id(light_sensor).state;
-        int new_value = raw_value * 2;
-        if (new_value != id(display_intensity).state) {
-          id(display_intensity).state = new_value;
-        }
+      int iaq = int(id(bedroom_iaq).state);
+      if (iaq <= 50) return {"Excellent"};
+      else if (iaq <= 100) return {"Good"};
+      else if (iaq <= 150) return {"Lightly polluted"};
+      else if (iaq <= 200) return {"Moderately polluted"};
+      else if (iaq <= 250) return {"Heavily polluted"};
+      else if (iaq <= 350) return {"Severely polluted"};
+      else if (iaq <= 500) return {"Extremely polluted"};
+      else return {"Unknown"};
 
 output:
   - platform: ledc
     pin: GPIO7
     id: leds
-    frequency: 4096
+    frequency: 2000
   - platform: ledc
     pin: GPIO13
     id: buzzer_out
-    frequency: 4096
+    frequency: 2000
     max_power: 0.05
-
+    
 switch:
   - platform: gpio
     pin: GPIO12
@@ -316,8 +307,8 @@ switch:
     on_turn_on:
       - media_player.volume_set:
           id: slaapkamer_media_player
-          volume: 20%
-
+          volume: 10%
+  
 rtttl:
   output: buzzer_out
   id: my_rtttl
