@@ -6,7 +6,7 @@ Credit where credit's due: This was possible due to the immense help of BC547, i
 This is the PCB of an alarm clock I designed because there is nothing like it on the entire net. At least not as far as I know/found.
 
 The inspiration is a cheap alarm clock that I soldered myself, from Aliexpress that had some nice features... but lacks others. So here is a list of what the goal is:
-![picture of the clock](https://github.com/harrydg1/ha-alarm-clock/blob/main/Pictures/signal-2025-02-15-10-02-27-468.jpg)
+![picture of the clock](https://github.com/harrydg1/ha-alarm-clock/blob/version-1/Pictures/signal-2025-02-15-10-02-27-468.jpg)
 - an alarm clock that you never have to set the time (like daylight saving time, ...), based on the ESP32-S3 chip
 - simple good old fashioned red (or any other color you might like) 7 segment display
   - 1 larger one for the time: https://nl.aliexpress.com/item/1005002059351703.html
