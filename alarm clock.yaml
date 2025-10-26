@@ -121,11 +121,7 @@ display:
     dio_pin: GPIO17
     inverted: true
     length: 4
-<<<<<<< HEAD
     update_interval: 500ms
-=======
-    update_interval: 2s
->>>>>>> 1ff690e42dd2c736961b18e46f30d7bbbaccf7e4
     intensity: 0
     id: temp_display
     lambda: |-
@@ -134,13 +130,8 @@ display:
   - platform: tm1637
     clk_pin: GPIO15
     dio_pin: GPIO16
-<<<<<<< HEAD
     update_interval: 500ms
     length: 4
-=======
-    length: 4
-    update_interval: 2s
->>>>>>> 1ff690e42dd2c736961b18e46f30d7bbbaccf7e4
     intensity: 0
     id: time_display
     lambda: |-
