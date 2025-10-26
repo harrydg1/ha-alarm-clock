@@ -155,14 +155,14 @@ binary_sensor:
       inverted: true
       mode:
         input: true
-    name: "${friendlyname} Knop Links"
+    name: "Knop Links"
   - platform: gpio
     pin:
       number: GPIO5
       inverted: true
       mode:
         input: true
-    name: "${friendlyname} Knop Midden"
+    name: "Knop Midden"
 #    on_press:
 #      then:
 #        - switch.toggle: slaapkamerdac
@@ -172,7 +172,7 @@ binary_sensor:
       inverted: true
       mode:
         input: true
-    name: "${friendlyname} Knop Rechts"
+    name: "Knop Rechts"
     id: knop_rechts
     on_multi_click:
     - timing:
@@ -198,12 +198,12 @@ binary_sensor:
 
 sensor:
   - platform: internal_temperature
-    name: "${friendlyname} Internal Temperature"
+    name: "Internal Temperature"
     entity_category: "diagnostic"
     update_interval: 5.0min
 
   - platform: uptime
-    name: ${friendlyname} Uptime
+    name: Uptime
     id: sys_uptime
     entity_category: "diagnostic"
     filters:
@@ -212,14 +212,14 @@ sensor:
     update_interval: 5.0min
 
   - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
-    name: "${friendlyname} WiFi Signal dB"
+    name: "WiFi Signal dB"
     id: wifi_signal_db
     entity_category: "diagnostic"
     update_interval: 5.0min
 
   - platform: copy # Reports the WiFi signal strength in %
     source_id: wifi_signal_db
-    name: "${friendlyname} WiFi Signal Percent"
+    name: "WiFi Signal Percent"
     filters:
       - lambda: return clamp(2 * (x + 100.0), 0.0, 100.0);
     unit_of_measurement: "%"
@@ -228,7 +228,7 @@ sensor:
 
   - platform: adc
     id: light_sensor
-    name: ${friendlyname} light Sensor
+    name: light Sensor
     update_interval: 3s
     pin: GPIO1
     attenuation: 12db
@@ -251,21 +251,21 @@ sensor:
             id(time_display).set_intensity(intensity);
   - platform: bme680
     temperature:
-      name: "${friendlyname} Bedroom Temperature"
+      name: "Bedroom Temperature"
       id: bedroom_temperature
       oversampling: 16x
     pressure:
-      name: "${friendlyname} Pressure"
+      name: "Pressure"
     humidity:
       id: "bedroom_humidity"
-      name: "${friendlyname} Humidity"
+      name: "Humidity"
     gas_resistance:
       id: "bedroom_gas_resistance"
-      name: "${friendlyname} Gas Resistance"
+      name: "Gas Resistance"
     address: 0x77
     update_interval: 60s
   - platform: template
-    name: "${friendlyname} Air Quality"
+    name: "Air Quality"
     id: bedroom_iaq
     icon: "mdi:gauge"
     # calculation: comp_gas = log(R_gas[ohm]) + 0.04 log(Ohm)/%rh * hum[%rh]
@@ -275,7 +275,7 @@ sensor:
 
 text_sensor:
   - platform: template
-    name: "${friendlyname} IAQ Classification"
+    name: "IAQ Classification"
     icon: "mdi:checkbox-marked-circle-outline"
     lambda: |-
       int iaq = int(id(bedroom_iaq).state);
@@ -302,7 +302,7 @@ output:
 switch:
   - platform: gpio
     pin: GPIO12
-    name: ${friendlyname} slaapkamerdac
+    name: slaapkamerdac
     id: slaapkamerdac
     on_turn_on:
       - media_player.volume_set:
@@ -315,6 +315,6 @@ rtttl:
 
 light:
   - platform: monochromatic
-    name: "${friendlyname} Night Light"
+    name: "Night Light"
     output: leds
     id: bedroomleds
