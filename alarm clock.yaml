@@ -236,7 +236,7 @@ sensor:
       then:
         - lambda: |-
             float voltage = x;
-            float brightness_factor = clamp(voltage / 3.3, 0.0, 1.0)
+            float brightness_factor = clamp(voltage / 3.3, 0.0, 1.0);
 
             // Apply a logarithmic curve for smoother eye perception
             float scaled = pow(brightness_factor, 0.6);
@@ -318,3 +318,4 @@ light:
     name: "Night Light"
     output: leds
     id: bedroomleds
+
