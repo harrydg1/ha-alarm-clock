@@ -3,14 +3,11 @@ substitutions:
   ha_api_key: !secret home_assistant_api_key
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
-  ota_password: !secret ota_password
   hotspot_password: !secret hotspot_password
 
 esphome:
   name: ${friendlyname}
   friendly_name: ${friendlyname}
-  platformio_options:
-    board_build.flash_mode: dio
   on_boot:
     then:
       - delay: 5s
@@ -18,31 +15,16 @@ esphome:
          id: slaapkamer_media_player
          volume: 10%
 
-external_components:
-  - source:
-      type: git
-      url: https://github.com/gnumpi/esphome_audio
-      ref: main
-    components:
-      - adf_pipeline
-      - i2s_audio
-      #    refresh: never
-
 esp32:
   board:   esp32-s3-devkitc-1
   variant: esp32s3
-  flash_size: 16MB
   framework:
-    type:  esp-idf
-    version: 4.4.8
-    platform_version: 5.4.0
-    sdkconfig_options:
-      CONFIG_ESP32_S3_BOX_BOARD: "y"
+    type: esp-idf
 
 psram:
   mode: octal
   speed: 80MHz
-    
+
 # Enable logging
 logger:
   level: info
@@ -63,12 +45,12 @@ api:
 
 ota:
   - platform: esphome
-    password: ${ota_password}
+    encryption:
+      key: ${ha_api_key}
 
 wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
-  domain: .lan
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -76,7 +58,13 @@ wifi:
     password: ${hotspot_password}
 
 captive_portal:
-    
+
+globals:
+  - id: dim_direction_up
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+
 # AUX1 pin is GPIO8
 # AUX2 pin is GPIO2
 
@@ -84,23 +72,20 @@ i2s_audio:
   - id: i2s_out
     i2s_lrclk_pin: GPIO9
     i2s_bclk_pin: GPIO10
-  
-adf_pipeline:
+
+speaker:
   - platform: i2s_audio
-    type: audio_out
-    id: adf_i2s_out
-    i2s_audio_id: i2s_out
+    id: slaapkamer_speaker
+    dac_type: external
     i2s_dout_pin: GPIO11
-    
+    channel: mono
+
 media_player:
-  - platform: adf_pipeline
+  - platform: speaker
+    name: ${friendlyname} Player
     id: slaapkamer_media_player
-    name: ${friendlyname}
-    keep_pipeline_alive: false
-    internal: false
-    pipeline:
-      - self
-      - adf_i2s_out
+    announcement_pipeline:
+      speaker: slaapkamer_speaker
 
 i2c:
     sda: GPIO21
@@ -136,11 +121,15 @@ display:
     id: time_display
     lambda: |-
         auto t = id(sntp_time).now();
+        if (!t.is_valid()) {
+          it.print("--.--");
+          return;
+        }
         int hour = t.hour;
         int minute = t.minute;
 
         // Blink colon every 2 seconds
-        bool blink = (int(id(millis()) / 1000) % 2) == 0;
+        bool blink = (t.second % 2) == 0;
 
         if (hour < 10) {
           it.printf(" %d%s%02d", hour, blink ? "." : "", minute);
@@ -155,55 +144,91 @@ binary_sensor:
       inverted: true
       mode:
         input: true
-    name: "Knop Links"
+    name: "${friendlyname} Knop Links"
+    filters:
+      - delayed_on: 10ms
   - platform: gpio
     pin:
       number: GPIO5
       inverted: true
       mode:
         input: true
-    name: "Knop Midden"
-#    on_press:
-#      then:
-#        - switch.toggle: slaapkamerdac
+    name: "${friendlyname} Knop Midden"
+    filters:
+      - delayed_on: 10ms
   - platform: gpio
     pin:
       number: GPIO6
       inverted: true
       mode:
         input: true
-    name: "Knop Rechts"
+    name: "${friendlyname} Knop Rechts"
     id: knop_rechts
+    filters:
+      - delayed_on: 10ms
     on_multi_click:
-    - timing:
-        - ON for at most 0.7s
-      then:
-        - logger.log: "simple click"
-        - light.toggle: bedroomleds
-    - timing:
-        - ON for at least 1s
-      then:
-        - logger.log: "LONG click"
-        - while:
-            condition:
-              binary_sensor.is_on: knop_rechts
-            then:
-              - light.dim_relative:
-                  id: bedroomleds
-                  relative_brightness: 5%
-                  transition_length: 0.1s
-                  brightness_limits:
+      # 1. DOUBLE CLICK (Must go FIRST)
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at most 0.4s
+          - ON for at most 0.4s
+        then:
+          - logger.log: "Double click"
+          - light.turn_on:
+              id: bedroomleds
+              brightness: 100%
+
+      # 2. SHORT CLICK (Single click)
+      - timing:
+          - ON for at most 0.7s
+          - OFF for at least 0.4s
+        then:
+          - logger.log: "Simple click"
+          - light.toggle: bedroomleds
+
+      # 3. LONG CLICK (Hold to dim)
+      - timing:
+          - ON for at least 1s
+        then:
+          - logger.log: "LONG click (Wave Dimming)"
+          - lambda: |-
+              // If the light is off, force direction UP and turn it on to minimum first
+              if (!id(bedroomleds).current_values.is_on()) {
+                id(dim_direction_up) = true;
+                auto call = id(bedroomleds).turn_on();
+                call.set_brightness(0.1f); // 10% minimum brightness
+                call.perform();
+              } else {
+                // If the light is already on, toggle the wave direction normally
+                id(dim_direction_up) = !id(dim_direction_up);
+              }
+          - delay: 0.2s
+          - while:
+              condition:
+                binary_sensor.is_on: knop_rechts
+              then:
+                - light.dim_relative:
+                    id: bedroomleds
+                    relative_brightness: !lambda |-
+                      if (id(dim_direction_up)) {
+                        return 0.05;
+                      } else {
+                        return -0.05;
+                      }
+                    transition_length: 0.1s
+                    brightness_limits:
+                      min_brightness: 10%
                       max_brightness: 100%
-              - delay: 0.3s
+                - delay: 0.2s
 
 sensor:
   - platform: internal_temperature
-    name: "Internal Temperature"
+    name: "${friendlyname} Internal Temperature"
     entity_category: "diagnostic"
     update_interval: 5.0min
 
   - platform: uptime
-    name: Uptime
+    name: ${friendlyname} Uptime
     id: sys_uptime
     entity_category: "diagnostic"
     filters:
@@ -212,110 +237,90 @@ sensor:
     update_interval: 5.0min
 
   - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
-    name: "WiFi Signal dB"
+    name: "${friendlyname} WiFi Signal dB"
     id: wifi_signal_db
     entity_category: "diagnostic"
     update_interval: 5.0min
 
   - platform: copy # Reports the WiFi signal strength in %
     source_id: wifi_signal_db
-    name: "WiFi Signal Percent"
+    name: "${friendlyname} WiFi Signal Percent"
     filters:
       - lambda: return clamp(2 * (x + 100.0), 0.0, 100.0);
     unit_of_measurement: "%"
     entity_category: "diagnostic"
-    device_class: ""
 
   - platform: adc
     id: light_sensor
-    name: light Sensor
+    name: ${friendlyname} light Sensor
     update_interval: 3s
     pin: GPIO1
     attenuation: 12db
     on_value:
       then:
         - lambda: |-
-            float voltage = x;
-            float brightness_factor = clamp(voltage / 3.3, 0.0, 1.0);
-
-            // Apply a logarithmic curve for smoother eye perception
-            float scaled = pow(brightness_factor, 0.6);
-
-            // Map to TM1637 intensity range (0–7)
-            const int min_intensity = 1;  // minimum brightness (0 = off)
-            const int max_intensity = 7;  // maximum brightness
-            int intensity = clamp(int(scaled * (max_intensity - min_intensity) + min_intensity + 0.8), min_intensity, max_intensity);
-
+            // at 1.5, I want full brightness, hence the clamp
+            int intensity = clamp((int)(x * 4.0 + 1.0), 1, 7);
             // Apply to both TM1637 displays
+            //ESP_LOGI("display", "intensity is: %d", intensity);
             id(temp_display).set_intensity(intensity);
             id(time_display).set_intensity(intensity);
-  - platform: bme680
+  - platform: bme68x_bsec2
     temperature:
-      name: "Bedroom Temperature"
+      name: "BME680 Temperature"
       id: bedroom_temperature
-      oversampling: 16x
     pressure:
-      name: "Pressure"
+      name: "BME680 Pressure"
     humidity:
-      id: "bedroom_humidity"
-      name: "Humidity"
-    gas_resistance:
-      id: "bedroom_gas_resistance"
-      name: "Gas Resistance"
-    address: 0x77
-    update_interval: 60s
-  - platform: template
-    name: "Air Quality"
-    id: bedroom_iaq
-    icon: "mdi:gauge"
-    # calculation: comp_gas = log(R_gas[ohm]) + 0.04 log(Ohm)/%rh * hum[%rh]
-    lambda: |-
-      return log(id(bedroom_gas_resistance).state) + 0.04 *  id(bedroom_humidity).state;
-    state_class: "measurement"
+      name: "BME680 Humidity"
+    iaq:
+      name: "BME680 IAQ"
+      id: iaq
+    co2_equivalent:
+      name: "BME680 CO2 Equivalent"
+    breath_voc_equivalent:
+      name: "BME680 Breath VOC Equivalent"
 
 text_sensor:
-  - platform: template
-    name: "IAQ Classification"
-    icon: "mdi:checkbox-marked-circle-outline"
-    lambda: |-
-      int iaq = int(id(bedroom_iaq).state);
-      if (iaq <= 50) return {"Excellent"};
-      else if (iaq <= 100) return {"Good"};
-      else if (iaq <= 150) return {"Lightly polluted"};
-      else if (iaq <= 200) return {"Moderately polluted"};
-      else if (iaq <= 250) return {"Heavily polluted"};
-      else if (iaq <= 350) return {"Severely polluted"};
-      else if (iaq <= 500) return {"Extremely polluted"};
-      else return {"Unknown"};
+  - platform: bme68x_bsec2
+    iaq_accuracy:
+      name: "BME680 IAQ Accuracy"
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: bme680
+  operating_age: 28d
+  sample_rate: ULP
+  supply_voltage: 3.3V
 
 output:
   - platform: ledc
     pin: GPIO7
     id: leds
-    frequency: 2000
+    # allows for 12 bit resolution
+    frequency: 19531
   - platform: ledc
     pin: GPIO13
     id: buzzer_out
-    frequency: 2000
-    max_power: 0.05
-    
+    frequency: 1000
+    max_power: 0.02
+
 switch:
   - platform: gpio
     pin: GPIO12
-    name: slaapkamerdac
+    name: ${friendlyname} slaapkamerdac
     id: slaapkamerdac
     on_turn_on:
       - media_player.volume_set:
           id: slaapkamer_media_player
           volume: 10%
-  
+
 rtttl:
   output: buzzer_out
   id: my_rtttl
 
 light:
   - platform: monochromatic
-    name: "Night Light"
+    name: "${friendlyname} Night Light"
     output: leds
     id: bedroomleds
-
